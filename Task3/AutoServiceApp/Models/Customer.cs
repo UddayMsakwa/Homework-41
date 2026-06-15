@@ -7,6 +7,16 @@ public class Customer : BaseEntity
     public string Email { get; set; } = "";
     public string Address { get; set; } = "";
 
+    public bool HasCars()
+    {
+        return _cars.Any();
+    }
+
+    public string GetContactInfo()
+    {
+        return $"{Name} - {Phone}";
+    }
+
     [System.Text.Json.Serialization.JsonIgnore]
     private readonly List<Car> _cars = new();
     public IReadOnlyCollection<Car> Cars => _cars;
@@ -16,7 +26,6 @@ public class Customer : BaseEntity
         _cars.Add(car);
     }
 
-    
     public void RemoveCar(Car car)
     {
         _cars.Remove(car);
