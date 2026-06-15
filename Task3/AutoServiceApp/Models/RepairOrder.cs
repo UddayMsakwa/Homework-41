@@ -22,13 +22,21 @@ public class RepairOrder : BaseEntity
     public List<string> UsedPartIds { get; set; } = new();
     public List<string> StatusHistory { get; set; } = new();
 
+    
+    public RepairOrderType Type { get; set; } = RepairOrderType.Standard;
+
+    
+    public bool NeedTaxi { get; set; }
+    public decimal UrgentFee { get; set; } = BusinessRules.UrgentRepairFee;
+    public string WarrantyNumber { get; set; } = "";
+    public bool ApprovedByDealer { get; set; }
+
     public void Complete()
     {
         Status = OrderStatus.Completed;
         CompletedAt = DateTime.Now;
         StatusHistory.Add($"{DateTime.Now:g}: order completed");
     }
-
 
     public string GetCustomerName()
     {
@@ -46,16 +54,4 @@ public class RepairOrder : BaseEntity
         var car = Car == null ? CarId : $"{Car.Make} {Car.Model}";
         return $"{OrderNumber}: {client}, {car}, {Status}, {Cost:C}";
     }
-}
-
-public class UrgentRepairOrder : RepairOrder
-{
-    public bool NeedTaxi { get; set; }
-    public decimal UrgentFee { get; set; } = BusinessRules.UrgentRepairFee;
-}
-
-public class WarrantyRepairOrder : RepairOrder
-{
-    public string WarrantyNumber { get; set; } = "";
-    public bool ApprovedByDealer { get; set; }
 }
