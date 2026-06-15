@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace AutoServiceApp.Storage;
 
-public class JsonFileStore<T> : IDataProvider<T>
+public class JsonFileStore<T>
 {
     public string Folder { get; set; }
     public JsonSerializerOptions Options { get; set; } = new() { WriteIndented = true };
@@ -12,7 +12,7 @@ public class JsonFileStore<T> : IDataProvider<T>
         var root = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         Folder = Path.Combine(root, "AutoServiceApp");
         Directory.CreateDirectory(Folder);
-    }
+    } 
 
     public List<T> Load(string name)
     {
