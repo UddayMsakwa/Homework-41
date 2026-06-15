@@ -26,7 +26,11 @@ public class Customer : BaseEntity, IExportable
     {
         _cars.Clear();
     }
-    
+
+    public string DisplayText()
+    {
+        return $"{Name} / {Phone}";
+    }
 
     public string LastPaymentMethod { get; set; } = "cash";
 
