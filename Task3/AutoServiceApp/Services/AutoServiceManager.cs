@@ -15,10 +15,7 @@ public class AutoServiceManager
     public List<Mechanic> Mechanics { get; set; } = new();
     public List<string> Notifications { get; set; } = new();
 
-    public RepairOrder? _selectedOrder;
-    public Part? _selectedPart;
-    public decimal _tempDiscount;
-    public BaseReport? _currentReport;
+    public OrderProcessingContext Context { get; set; } = new();
 
     public JsonFileStore<Customer> CustomerStore { get; set; } = new();
     public JsonFileStore<Car> CarStore { get; set; } = new();
@@ -253,7 +250,7 @@ public class AutoServiceManager
 
     public void ChangeOrderStatus(RepairOrder order, OrderStatus newStatus, string notificationType)
     {
-        _selectedOrder = order;
+        Context.SelectedOrder = order;   
 
         if (newStatus == OrderStatus.Completed)
         {
@@ -283,7 +280,7 @@ public class AutoServiceManager
 
     public bool UsePartForOrder(RepairOrder order, Part part, int qty)
     {
-        _selectedPart = part;
+        Context.SelectedPart = part;     
         if (part.Stock < qty)
             return false;
 
@@ -308,10 +305,10 @@ public class AutoServiceManager
         if (final && order.Status == OrderStatus.Ready)
             result += 500;
         if (result > 10000)
-            _tempDiscount = result * 0.15m;
+            Context.TempDiscount = result * 0.15m;   
         else
-            _tempDiscount = 0;
-        return result - _tempDiscount;
+            Context.TempDiscount = 0;
+        return result - Context.TempDiscount;
     }
 
 
@@ -335,7 +332,7 @@ public class AutoServiceManager
 
     public string BuildReports(DateTime from, DateTime to)
     {
-        _currentReport = new RepairReport { Title = "General report", From = from, To = to, Orders = Orders };
+        Context.CurrentReport = new RepairReport { Title = "General report", From = from, To = to, Orders = Orders };  
         return ReportService.BuildRevenueReport(Orders, from, to) + "\n"
             + ReportService.BuildPopularWorks(Orders) + "\n\n"
             + ReportService.BuildMechanicsLoad(Mechanics, Orders) + "\n"
