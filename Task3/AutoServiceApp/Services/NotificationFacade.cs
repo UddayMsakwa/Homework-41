@@ -14,12 +14,12 @@ public class NotificationFacade
     public void Notify(string type, string phone, string email, string title, string message)
     {
         if (type == "sms")
-            Sms.SendSms(phone, message);
+            Sms.Send(phone, message);            
         else if (type == "email")
-            Email.Send(email, title, message);
+            Email.Send(email, title, message);   
         else
         {
-            Sms.SendSms(phone, message);
+            Sms.Send(phone, message);            
             Email.Send(email, title, message);
         }
     }

@@ -349,14 +349,15 @@ public class AutoServiceManager
         var phone = order.Customer?.Phone ?? "";
         var email = order.Customer?.Email ?? "";
         var text = $"Order {order.OrderNumber}: new status {order.Status}";
+
         if (type == "sms")
-            SmsNotifier.SendSms(phone, text);
+            SmsNotifier.Send(phone, text);          
         else if (type == "email")
-            EmailSender.Send(email, "Order status", text);
+            EmailSender.Send(email, text);          
         else
         {
-            SmsNotifier.SendSms(phone, text);
-            EmailSender.Send(email, "Order status", text);
+            SmsNotifier.Send(phone, text);
+            EmailSender.Send(email, text);
         }
         Notifications.Add($"{DateTime.Now:g}: {type} {text}");
     }
