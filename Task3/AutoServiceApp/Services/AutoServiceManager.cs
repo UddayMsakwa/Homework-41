@@ -7,7 +7,6 @@ namespace AutoServiceApp.Services;
 
 public class AutoServiceManager
 {
-    
     public List<Customer> Customers { get; set; } = new();
     public List<Car> Cars { get; set; } = new();
     public List<RepairOrder> Orders { get; set; } = new();
@@ -26,10 +25,16 @@ public class AutoServiceManager
     public EmailSender EmailSender { get; set; } = new();
     public ReportService ReportService { get; set; } = new();
     public OrderStatusHelper StatusHelper { get; set; } = new();
+    public OrderStatusService StatusService { get; set; }  
 
+   
+    public AutoServiceManager()
+    {
+        StatusService = new OrderStatusService(StatusHelper);
+    }
+   
     public void Load()
     {
-        
         Customers = CustomerStore.Load("customers.json");
         Cars = CarStore.Load("cars.json");
         Orders = OrderStore.Load("orders.json");
@@ -42,7 +47,6 @@ public class AutoServiceManager
 
     public void SaveAll()
     {
-        
         CustomerStore.Save("customers.json", Customers);
         CarStore.Save("cars.json", Cars);
         OrderStore.Save("orders.json", Orders);
@@ -52,7 +56,6 @@ public class AutoServiceManager
 
     public void RelinkEverything()
     {
-       
         foreach (var c in Customers)
         {
             c.ClearCars();
@@ -73,7 +76,6 @@ public class AutoServiceManager
         foreach (var m in Mechanics)
             m.AssignedOrderIds = Orders.Where(x => x.AssignedMechanicId == m.Id).Select(x => x.Id).ToList();
     }
-
 
     public Customer AddCustomer(CustomerInfo info)
     {
@@ -125,14 +127,13 @@ public class AutoServiceManager
         };
         Cars.Add(car);
         if (owner != null)
-            owner.AddCar(car);   
+            owner.AddCar(car);
         SaveAll();
         return car;
     }
 
     public void UpdateCar(Car car, Customer? owner, string make, string model, int year, string vin, int mileage, string licensePlate)
     {
-        
         car.CustomerId = owner?.Id ?? "";
         car.Owner = owner;
         car.Make = make;
@@ -149,12 +150,11 @@ public class AutoServiceManager
     {
         Cars.Remove(car);
         foreach (var c in Customers)
-            c.RemoveCar(car);   
+            c.RemoveCar(car);
         foreach (var order in Orders.Where(x => x.CarId == car.Id).ToList())
             Orders.Remove(order);
         SaveAll();
     }
-
 
     public Mechanic AddMechanic(string name, string specialization, decimal hourRate)
     {
@@ -206,7 +206,6 @@ public class AutoServiceManager
         SaveAll();
     }
 
-    
     public RepairOrder CreateOrder(Customer? customer, Car? car, string description, Mechanic? mechanic, OrderStatus status, string paymentMethod)
     {
         var order = new RepairOrder
@@ -250,21 +249,10 @@ public class AutoServiceManager
 
     public void ChangeOrderStatus(RepairOrder order, OrderStatus newStatus, string notificationType)
     {
-        Context.SelectedOrder = order;   
+        Context.SelectedOrder = order;
 
-        if (newStatus == OrderStatus.Completed)
-        {
-            order.Complete();               
-        }
-        else
-        {
-            StatusHelper.MarkStatus(order, newStatus);
-            if (newStatus == OrderStatus.Ready)
-                order.Cost = CalculateOrderCost(order, true, order.PaymentMethod);
-        }
-
-        if (order.AssignedMechanic != null && !order.AssignedMechanic.AssignedOrderIds.Contains(order.Id))
-            order.AssignedMechanic.AssignedOrderIds.Add(order.Id);
+        StatusService.UpdateStatus(order, newStatus,
+            calculateCost: () => CalculateOrderCost(order, true, order.PaymentMethod));
 
         NotifyAboutStatus(order, notificationType);
         SaveAll();
@@ -280,7 +268,7 @@ public class AutoServiceManager
 
     public bool UsePartForOrder(RepairOrder order, Part part, int qty)
     {
-        Context.SelectedPart = part;     
+        Context.SelectedPart = part;
         if (part.Stock < qty)
             return false;
 
@@ -305,12 +293,11 @@ public class AutoServiceManager
         if (final && order.Status == OrderStatus.Ready)
             result += 500;
         if (result > 10000)
-            Context.TempDiscount = result * 0.15m;   
+            Context.TempDiscount = result * 0.15m;
         else
             Context.TempDiscount = 0;
         return result - Context.TempDiscount;
     }
-
 
     public string BuildOrderDetails(RepairOrder order)
     {
@@ -323,7 +310,7 @@ public class AutoServiceManager
         sb.AppendLine("History:");
         foreach (var h in order.StatusHistory)
             sb.AppendLine(" - " + h);
-        
+
         var firstCar = order.Customer?.Cars.FirstOrDefault();
         if (firstCar != null)
             sb.AppendLine("First car owner phone: " + firstCar.Owner?.Phone);
@@ -332,7 +319,7 @@ public class AutoServiceManager
 
     public string BuildReports(DateTime from, DateTime to)
     {
-        Context.CurrentReport = new RepairReport { Title = "General report", From = from, To = to, Orders = Orders };  
+        Context.CurrentReport = new RepairReport { Title = "General report", From = from, To = to, Orders = Orders };
         return ReportService.BuildRevenueReport(Orders, from, to) + "\n"
             + ReportService.BuildPopularWorks(Orders) + "\n\n"
             + ReportService.BuildMechanicsLoad(Mechanics, Orders) + "\n"
@@ -358,9 +345,9 @@ public class AutoServiceManager
         var text = $"Order {order.OrderNumber}: new status {order.Status}";
 
         if (type == "sms")
-            SmsNotifier.Send(phone, text);          
+            SmsNotifier.Send(phone, text);
         else if (type == "email")
-            EmailSender.Send(email, text);          
+            EmailSender.Send(email, text);
         else
         {
             SmsNotifier.Send(phone, text);
@@ -371,7 +358,6 @@ public class AutoServiceManager
 
     private void Seed()
     {
-
         var c1 = AddCustomer(new CustomerInfo { Name = "John Parker", Phone = "+1 555 100-20-30", Email = "john@example.com", Address = "12 Market Street" });
         var c2 = AddCustomer(new CustomerInfo { Name = "Anna Stone", Phone = "+1 555 555-44-33", Email = "anna@example.com", Address = "45 Lake Avenue" });
         var car1 = AddCar(c1, "Toyota", "Camry", 2018, "JTNB11HK303000001", 87000, "ABC123");
