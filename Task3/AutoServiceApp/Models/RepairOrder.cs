@@ -22,6 +22,16 @@ public class RepairOrder : BaseEntity
     public List<string> UsedPartIds { get; set; } = new();
     public List<string> StatusHistory { get; set; } = new();
 
+    public string GetCustomerName()
+    {
+        return Customer?.Name ?? "";
+    }
+
+    public string GetOwnerPhone()
+    {
+        return Car?.Owner?.Phone ?? "";
+    }
+
     public override string ToString()
     {
         var client = Customer?.Name ?? CustomerId;
