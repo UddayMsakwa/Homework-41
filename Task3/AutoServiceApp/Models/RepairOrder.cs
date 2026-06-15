@@ -22,6 +22,14 @@ public class RepairOrder : BaseEntity
     public List<string> UsedPartIds { get; set; } = new();
     public List<string> StatusHistory { get; set; } = new();
 
+    public void Complete()
+    {
+        Status = OrderStatus.Completed;
+        CompletedAt = DateTime.Now;
+        StatusHistory.Add($"{DateTime.Now:g}: order completed");
+    }
+
+
     public string GetCustomerName()
     {
         return Customer?.Name ?? "";
