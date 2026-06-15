@@ -73,10 +73,16 @@ public class AutoServiceManager
             m.AssignedOrderIds = Orders.Where(x => x.AssignedMechanicId == m.Id).Select(x => x.Id).ToList();
     }
 
-    
-    public Customer AddCustomer(string name, string phone, string email, string address)
+
+    public Customer AddCustomer(CustomerInfo info)
     {
-        var c = new Customer { Name = name, Phone = phone, Email = email, Address = address };
+        var c = new Customer
+        {
+            Name = info.Name,
+            Phone = info.Phone,
+            Email = info.Email,
+            Address = info.Address
+        };
         Customers.Add(c);
         SaveAll();
         return c;
@@ -353,9 +359,9 @@ public class AutoServiceManager
 
     private void Seed()
     {
-        
-        var c1 = AddCustomer("John Parker", "+1 555 100-20-30", "john@example.com", "12 Market Street");
-        var c2 = AddCustomer("Anna Stone", "+1 555 555-44-33", "anna@example.com", "45 Lake Avenue");
+
+        var c1 = AddCustomer(new CustomerInfo { Name = "John Parker", Phone = "+1 555 100-20-30", Email = "john@example.com", Address = "12 Market Street" });
+        var c2 = AddCustomer(new CustomerInfo { Name = "Anna Stone", Phone = "+1 555 555-44-33", Email = "anna@example.com", Address = "45 Lake Avenue" });
         var car1 = AddCar(c1, "Toyota", "Camry", 2018, "JTNB11HK303000001", 87000, "ABC123");
         AddCar(c2, "Kia", "Rio", 2021, "Z94CB41ABMR000002", 43000, "MOR777");
         var m1 = AddMechanic("Sam Miller", "engine", 1200);

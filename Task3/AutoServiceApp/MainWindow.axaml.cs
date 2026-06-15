@@ -116,13 +116,43 @@ public partial class MainWindow : Window
         AddLabeled(form, "Phone", _customerPhone);
         AddLabeled(form, "Email", _customerEmail);
         AddLabeled(form, "Address", _customerAddress);
+
+        
         form.Children.Add(RowButtons(
-            ("Create", (_, _) => { Manager.AddCustomer(_customerName.Text ?? "", _customerPhone.Text ?? "", _customerEmail.Text ?? "", _customerAddress.Text ?? ""); ClearCustomerForm(); RefreshAll(); }
+            ("Create", (_, _) =>
+            {
+                Manager.AddCustomer(new CustomerInfo
+                {
+                    Name = _customerName.Text ?? "",
+                    Phone = _customerPhone.Text ?? "",
+                    Email = _customerEmail.Text ?? "",
+                    Address = _customerAddress.Text ?? ""
+                });
+                ClearCustomerForm();
+                RefreshAll();
+            }
         ),
-            ("Save", (_, _) => { if (_customerList.SelectedItem is Customer c) { Manager.UpdateCustomer(c, _customerName.Text ?? "", _customerPhone.Text ?? "", _customerEmail.Text ?? "", _customerAddress.Text ?? ""); RefreshAll(); } }
+            ("Save", (_, _) =>
+            {
+                if (_customerList.SelectedItem is Customer c)
+                {
+                    Manager.UpdateCustomer(c, _customerName.Text ?? "", _customerPhone.Text ?? "", _customerEmail.Text ?? "", _customerAddress.Text ?? "");
+                    RefreshAll();
+                }
+            }
         ),
-            ("Delete", (_, _) => { if (_customerList.SelectedItem is Customer c) { _customerList.ItemsSource = null; Manager.DeleteCustomer(c); ClearCustomerForm(); RefreshAll(); } }
+            ("Delete", (_, _) =>
+            {
+                if (_customerList.SelectedItem is Customer c)
+                {
+                    _customerList.ItemsSource = null;
+                    Manager.DeleteCustomer(c);
+                    ClearCustomerForm();
+                    RefreshAll();
+                }
+            }
         )));
+
         Grid.SetColumn(form, 0);
         grid.Children.Add(form);
 
@@ -196,7 +226,6 @@ public partial class MainWindow : Window
         _orderCar = new ComboBox { PlaceholderText = "Car" };
         _orderMechanic = new ComboBox { PlaceholderText = "Mechanic" };
 
-        
         _orderStatus = new ComboBox
         {
             ItemsSource = Enum.GetValues<OrderStatus>(),
@@ -214,7 +243,6 @@ public partial class MainWindow : Window
         AddLabeled(form, "Description", _orderProblem);
         AddLabeled(form, "Cost", _orderCost);
 
-        
         form.Children.Add(RowButtons(
             ("Create", (_, _) =>
             {
@@ -457,7 +485,6 @@ public partial class MainWindow : Window
         _orderCustomer.SelectedItem = Manager.Customers.FirstOrDefault(x => x.Id == o.CustomerId);
         _orderCar.SelectedItem = Manager.Cars.FirstOrDefault(x => x.Id == o.CarId);
         _orderMechanic.SelectedItem = Manager.Mechanics.FirstOrDefault(x => x.Id == o.AssignedMechanicId);
-        
         _orderStatus.SelectedItem = o.Status;
         _orderPayment.SelectedItem = o.PaymentMethod;
         _orderProblem.Text = o.ProblemDescription;
