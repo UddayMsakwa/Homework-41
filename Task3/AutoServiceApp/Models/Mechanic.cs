@@ -6,6 +6,9 @@ public class Mechanic : BaseEntity
     public string Specialization { get; set; } = "";
     public decimal HourRate { get; set; }
     public List<string> AssignedOrderIds { get; set; } = new();
-
+    public string GetShortDisplay()
+    {
+        return $"{Name} - {Specialization}";
+    }
     public override string ToString() => $"{Name} - {Specialization}, {HourRate:C}/h";
 }
