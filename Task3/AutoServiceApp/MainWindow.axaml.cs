@@ -117,9 +117,12 @@ public partial class MainWindow : Window
         AddLabeled(form, "Email", _customerEmail);
         AddLabeled(form, "Address", _customerAddress);
         form.Children.Add(RowButtons(
-            ("Create", (_, _) => { Manager.AddCustomer(_customerName.Text ?? "", _customerPhone.Text ?? "", _customerEmail.Text ?? "", _customerAddress.Text ?? ""); ClearCustomerForm(); RefreshAll(); }),
-            ("Save", (_, _) => { if (_customerList.SelectedItem is Customer c) { Manager.UpdateCustomer(c, _customerName.Text ?? "", _customerPhone.Text ?? "", _customerEmail.Text ?? "", _customerAddress.Text ?? ""); RefreshAll(); } }),
-            ("Delete", (_, _) => { if (_customerList.SelectedItem is Customer c) { _customerList.ItemsSource = null; Manager.DeleteCustomer(c); ClearCustomerForm(); RefreshAll(); } })));
+            ("Create", (_, _) => { Manager.AddCustomer(_customerName.Text ?? "", _customerPhone.Text ?? "", _customerEmail.Text ?? "", _customerAddress.Text ?? ""); ClearCustomerForm(); RefreshAll(); }
+        ),
+            ("Save", (_, _) => { if (_customerList.SelectedItem is Customer c) { Manager.UpdateCustomer(c, _customerName.Text ?? "", _customerPhone.Text ?? "", _customerEmail.Text ?? "", _customerAddress.Text ?? ""); RefreshAll(); } }
+        ),
+            ("Delete", (_, _) => { if (_customerList.SelectedItem is Customer c) { _customerList.ItemsSource = null; Manager.DeleteCustomer(c); ClearCustomerForm(); RefreshAll(); } }
+        )));
         Grid.SetColumn(form, 0);
         grid.Children.Add(form);
 
@@ -158,9 +161,12 @@ public partial class MainWindow : Window
         AddLabeled(form, "License plate", _carLicense);
         AddLabeled(form, "Mileage", _carMileage);
         form.Children.Add(RowButtons(
-            ("Create", (_, _) => { Manager.AddCar(_carCustomer.SelectedItem as Customer, _carMake.Text ?? "", _carModel.Text ?? "", Int(_carYear.Text), _carVin.Text ?? "", Int(_carMileage.Text), _carLicense.Text ?? ""); ClearCarForm(); RefreshAll(); }),
-            ("Save", (_, _) => { if (_carList.SelectedItem is Car car) { Manager.UpdateCar(car, _carCustomer.SelectedItem as Customer, _carMake.Text ?? "", _carModel.Text ?? "", Int(_carYear.Text), _carVin.Text ?? "", Int(_carMileage.Text), _carLicense.Text ?? ""); RefreshAll(); } }),
-            ("Delete", (_, _) => { if (_carList.SelectedItem is Car car) { _carList.ItemsSource = null; Manager.DeleteCar(car); ClearCarForm(); RefreshAll(); } })));
+            ("Create", (_, _) => { Manager.AddCar(_carCustomer.SelectedItem as Customer, _carMake.Text ?? "", _carModel.Text ?? "", Int(_carYear.Text), _carVin.Text ?? "", Int(_carMileage.Text), _carLicense.Text ?? ""); ClearCarForm(); RefreshAll(); }
+        ),
+            ("Save", (_, _) => { if (_carList.SelectedItem is Car car) { Manager.UpdateCar(car, _carCustomer.SelectedItem as Customer, _carMake.Text ?? "", _carModel.Text ?? "", Int(_carYear.Text), _carVin.Text ?? "", Int(_carMileage.Text), _carLicense.Text ?? ""); RefreshAll(); } }
+        ),
+            ("Delete", (_, _) => { if (_carList.SelectedItem is Car car) { _carList.ItemsSource = null; Manager.DeleteCar(car); ClearCarForm(); RefreshAll(); } }
+        )));
         Grid.SetColumn(form, 0);
         grid.Children.Add(form);
         _carList = new ListBox();
@@ -189,7 +195,14 @@ public partial class MainWindow : Window
         _orderCustomer = new ComboBox { PlaceholderText = "Customer" };
         _orderCar = new ComboBox { PlaceholderText = "Car" };
         _orderMechanic = new ComboBox { PlaceholderText = "Mechanic" };
-        _orderStatus = new ComboBox { ItemsSource = new[] { "New", "Diagnostics", "In Progress", "Waiting for Parts", "Ready", "Released" }, SelectedIndex = 0 };
+
+        
+        _orderStatus = new ComboBox
+        {
+            ItemsSource = Enum.GetValues<OrderStatus>(),
+            SelectedIndex = 0
+        };
+
         _orderPayment = new ComboBox { ItemsSource = new[] { "cash", "card", "transfer" }, SelectedIndex = 0 };
         _orderProblem = Box("Problem description");
         _orderCost = Box("Cost");
@@ -200,10 +213,52 @@ public partial class MainWindow : Window
         AddLabeled(form, "Payment", _orderPayment);
         AddLabeled(form, "Description", _orderProblem);
         AddLabeled(form, "Cost", _orderCost);
+
+        
         form.Children.Add(RowButtons(
-            ("Create", (_, _) => { Manager.CreateOrder(_orderCustomer.SelectedItem as Customer, _orderCar.SelectedItem as Car, _orderProblem.Text ?? "", _orderMechanic.SelectedItem as Mechanic, _orderStatus.SelectedItem?.ToString() ?? "New", _orderPayment.SelectedItem?.ToString() ?? "cash"); ClearOrderForm(); RefreshAll(); }),
-            ("Save", (_, _) => { if (_orderList.SelectedItem is RepairOrder o) { Manager.UpdateOrder(o, _orderCustomer.SelectedItem as Customer, _orderCar.SelectedItem as Car, _orderProblem.Text ?? "", _orderMechanic.SelectedItem as Mechanic, _orderStatus.SelectedItem?.ToString() ?? "New", Decimal(_orderCost.Text), _orderPayment.SelectedItem?.ToString() ?? "cash"); RefreshAll(); } }),
-            ("Delete", (_, _) => { if (_orderList.SelectedItem is RepairOrder o) { _orderList.ItemsSource = null; Manager.Orders.Remove(o); Manager.SaveAll(); ClearOrderForm(); RefreshAll(); } })));
+            ("Create", (_, _) =>
+            {
+                var status = (_orderStatus.SelectedItem as OrderStatus?) ?? OrderStatus.New;
+                Manager.CreateOrder(
+                    _orderCustomer.SelectedItem as Customer,
+                    _orderCar.SelectedItem as Car,
+                    _orderProblem.Text ?? "",
+                    _orderMechanic.SelectedItem as Mechanic,
+                    status,
+                    _orderPayment.SelectedItem?.ToString() ?? "cash");
+                ClearOrderForm();
+                RefreshAll();
+            }
+        ),
+            ("Save", (_, _) =>
+            {
+                if (_orderList.SelectedItem is RepairOrder o)
+                {
+                    var status = (_orderStatus.SelectedItem as OrderStatus?) ?? OrderStatus.New;
+                    Manager.UpdateOrder(o,
+                        _orderCustomer.SelectedItem as Customer,
+                        _orderCar.SelectedItem as Car,
+                        _orderProblem.Text ?? "",
+                        _orderMechanic.SelectedItem as Mechanic,
+                        status,
+                        Decimal(_orderCost.Text),
+                        _orderPayment.SelectedItem?.ToString() ?? "cash");
+                    RefreshAll();
+                }
+            }
+        ),
+            ("Delete", (_, _) =>
+            {
+                if (_orderList.SelectedItem is RepairOrder o)
+                {
+                    _orderList.ItemsSource = null;
+                    Manager.Orders.Remove(o);
+                    Manager.SaveAll();
+                    ClearOrderForm();
+                    RefreshAll();
+                }
+            }
+        )));
 
         form.Children.Add(new TextBlock { Text = "Add work", Margin = new Avalonia.Thickness(0, 12, 0, 0) });
         _workName = Box("Work name");
@@ -258,9 +313,12 @@ public partial class MainWindow : Window
         AddLabeled(form, "Price", _partPrice);
         AddLabeled(form, "Stock", _partStock);
         form.Children.Add(RowButtons(
-            ("Add", (_, _) => { Manager.AddPart(_partName.Text ?? "", _partArticle.Text ?? "", Decimal(_partPrice.Text), Int(_partStock.Text)); ClearPartForm(); RefreshAll(); }),
-            ("Save", (_, _) => { if (_partList.SelectedItem is Part p) { Manager.UpdatePart(p, _partName.Text ?? "", _partArticle.Text ?? "", Decimal(_partPrice.Text), Int(_partStock.Text)); RefreshAll(); } }),
-            ("Delete", (_, _) => { if (_partList.SelectedItem is Part p) { _partList.ItemsSource = null; Manager.DeletePart(p); ClearPartForm(); RefreshAll(); } })));
+            ("Add", (_, _) => { Manager.AddPart(_partName.Text ?? "", _partArticle.Text ?? "", Decimal(_partPrice.Text), Int(_partStock.Text)); ClearPartForm(); RefreshAll(); }
+        ),
+            ("Save", (_, _) => { if (_partList.SelectedItem is Part p) { Manager.UpdatePart(p, _partName.Text ?? "", _partArticle.Text ?? "", Decimal(_partPrice.Text), Int(_partStock.Text)); RefreshAll(); } }
+        ),
+            ("Delete", (_, _) => { if (_partList.SelectedItem is Part p) { _partList.ItemsSource = null; Manager.DeletePart(p); ClearPartForm(); RefreshAll(); } }
+        )));
         Grid.SetColumn(form, 0);
         grid.Children.Add(form);
         _partList = new ListBox();
@@ -291,9 +349,12 @@ public partial class MainWindow : Window
         AddLabeled(form, "Specialization", _mechanicSpec);
         AddLabeled(form, "Rate", _mechanicRate);
         form.Children.Add(RowButtons(
-            ("Create", (_, _) => { Manager.AddMechanic(_mechanicName.Text ?? "", _mechanicSpec.Text ?? "", Decimal(_mechanicRate.Text)); ClearMechanicForm(); RefreshAll(); }),
-            ("Save", (_, _) => { if (_mechanicList.SelectedItem is Mechanic m) { Manager.UpdateMechanic(m, _mechanicName.Text ?? "", _mechanicSpec.Text ?? "", Decimal(_mechanicRate.Text)); RefreshAll(); } }),
-            ("Delete", (_, _) => { if (_mechanicList.SelectedItem is Mechanic m) { _mechanicList.ItemsSource = null; Manager.DeleteMechanic(m); ClearMechanicForm(); RefreshAll(); } })));
+            ("Create", (_, _) => { Manager.AddMechanic(_mechanicName.Text ?? "", _mechanicSpec.Text ?? "", Decimal(_mechanicRate.Text)); ClearMechanicForm(); RefreshAll(); }
+        ),
+            ("Save", (_, _) => { if (_mechanicList.SelectedItem is Mechanic m) { Manager.UpdateMechanic(m, _mechanicName.Text ?? "", _mechanicSpec.Text ?? "", Decimal(_mechanicRate.Text)); RefreshAll(); } }
+        ),
+            ("Delete", (_, _) => { if (_mechanicList.SelectedItem is Mechanic m) { _mechanicList.ItemsSource = null; Manager.DeleteMechanic(m); ClearMechanicForm(); RefreshAll(); } }
+        )));
         form.Children.Add(new TextBlock { Text = "Assigned orders" });
         form.Children.Add(_mechanicOrders);
         Grid.SetColumn(form, 0);
@@ -396,6 +457,7 @@ public partial class MainWindow : Window
         _orderCustomer.SelectedItem = Manager.Customers.FirstOrDefault(x => x.Id == o.CustomerId);
         _orderCar.SelectedItem = Manager.Cars.FirstOrDefault(x => x.Id == o.CarId);
         _orderMechanic.SelectedItem = Manager.Mechanics.FirstOrDefault(x => x.Id == o.AssignedMechanicId);
+        
         _orderStatus.SelectedItem = o.Status;
         _orderPayment.SelectedItem = o.PaymentMethod;
         _orderProblem.Text = o.ProblemDescription;

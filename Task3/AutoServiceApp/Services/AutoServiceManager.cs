@@ -7,6 +7,7 @@ namespace AutoServiceApp.Services;
 
 public class AutoServiceManager
 {
+    
     public List<Customer> Customers { get; set; } = new();
     public List<Car> Cars { get; set; } = new();
     public List<RepairOrder> Orders { get; set; } = new();
@@ -31,6 +32,7 @@ public class AutoServiceManager
 
     public void Load()
     {
+        
         Customers = CustomerStore.Load("customers.json");
         Cars = CarStore.Load("cars.json");
         Orders = OrderStore.Load("orders.json");
@@ -43,6 +45,7 @@ public class AutoServiceManager
 
     public void SaveAll()
     {
+        
         CustomerStore.Save("customers.json", Customers);
         CarStore.Save("cars.json", Cars);
         OrderStore.Save("orders.json", Orders);
@@ -52,6 +55,7 @@ public class AutoServiceManager
 
     public void RelinkEverything()
     {
+        
         foreach (var c in Customers)
             c.Cars = Cars.Where(x => x.CustomerId == c.Id).ToList();
 
@@ -69,6 +73,7 @@ public class AutoServiceManager
             m.AssignedOrderIds = Orders.Where(x => x.AssignedMechanicId == m.Id).Select(x => x.Id).ToList();
     }
 
+    
     public Customer AddCustomer(string name, string phone, string email, string address)
     {
         var c = new Customer { Name = name, Phone = phone, Email = email, Address = address };
@@ -100,6 +105,7 @@ public class AutoServiceManager
 
     public Car AddCar(Customer? owner, string make, string model, int year, string vin, int mileage, string licensePlate)
     {
+        
         var car = new Car
         {
             CustomerId = owner?.Id ?? "",
@@ -120,6 +126,7 @@ public class AutoServiceManager
 
     public void UpdateCar(Car car, Customer? owner, string make, string model, int year, string vin, int mileage, string licensePlate)
     {
+        
         car.CustomerId = owner?.Id ?? "";
         car.Owner = owner;
         car.Make = make;
@@ -134,6 +141,7 @@ public class AutoServiceManager
 
     public void DeleteCar(Car car)
     {
+        
         Cars.Remove(car);
         foreach (var c in Customers)
             c.Cars.RemoveAll(x => x.Id == car.Id);
@@ -142,6 +150,7 @@ public class AutoServiceManager
         SaveAll();
     }
 
+    
     public Mechanic AddMechanic(string name, string specialization, decimal hourRate)
     {
         var m = new Mechanic { Name = name, Specialization = specialization, HourRate = hourRate };
@@ -192,7 +201,8 @@ public class AutoServiceManager
         SaveAll();
     }
 
-    public RepairOrder CreateOrder(Customer? customer, Car? car, string description, Mechanic? mechanic, string status, string paymentMethod)
+    
+    public RepairOrder CreateOrder(Customer? customer, Car? car, string description, Mechanic? mechanic, OrderStatus status, string paymentMethod)
     {
         var order = new RepairOrder
         {
@@ -216,7 +226,7 @@ public class AutoServiceManager
         return order;
     }
 
-    public void UpdateOrder(RepairOrder order, Customer? customer, Car? car, string description, Mechanic? mechanic, string status, decimal cost, string paymentMethod)
+    public void UpdateOrder(RepairOrder order, Customer? customer, Car? car, string description, Mechanic? mechanic, OrderStatus status, decimal cost, string paymentMethod)
     {
         order.CustomerId = customer?.Id ?? "";
         order.CarId = car?.Id ?? "";
@@ -233,11 +243,11 @@ public class AutoServiceManager
         SaveAll();
     }
 
-    public void ChangeOrderStatus(RepairOrder order, string newStatus, string notificationType)
+    public void ChangeOrderStatus(RepairOrder order, OrderStatus newStatus, string notificationType)
     {
         _selectedOrder = order;
         StatusHelper.MarkStatus(order, newStatus);
-        if (newStatus == "Ready")
+        if (newStatus == OrderStatus.Ready)
             order.Cost = CalculateOrderCost(order, true, order.PaymentMethod);
         if (order.AssignedMechanic != null && !order.AssignedMechanic.AssignedOrderIds.Contains(order.Id))
             order.AssignedMechanic.AssignedOrderIds.Add(order.Id);
@@ -277,7 +287,7 @@ public class AutoServiceManager
             result += result * 0.05m;
         if (order.Customer != null && order.Customer.Cars.Count > 2)
             result -= result * 0.10m;
-        if (final && order.Status == "Ready")
+        if (final && order.Status == OrderStatus.Ready)
             result += 500;
         if (result > 10000)
             _tempDiscount = result * 0.15m;
@@ -286,6 +296,7 @@ public class AutoServiceManager
         return result - _tempDiscount;
     }
 
+    
     public string BuildOrderDetails(RepairOrder order)
     {
         var sb = new StringBuilder();
@@ -342,6 +353,7 @@ public class AutoServiceManager
 
     private void Seed()
     {
+        
         var c1 = AddCustomer("John Parker", "+1 555 100-20-30", "john@example.com", "12 Market Street");
         var c2 = AddCustomer("Anna Stone", "+1 555 555-44-33", "anna@example.com", "45 Lake Avenue");
         var car1 = AddCar(c1, "Toyota", "Camry", 2018, "JTNB11HK303000001", 87000, "ABC123");
@@ -350,7 +362,7 @@ public class AutoServiceManager
         AddMechanic("Owen Lane", "electrical", 1500);
         AddPart("Oil filter", "OF-100", 650, 12);
         AddPart("Brake pads", "BR-500", 3200, 5);
-        var order = CreateOrder(c1, car1, "Knock on startup, diagnostics required", m1, "Diagnostics", "card");
+        var order = CreateOrder(c1, car1, "Knock on startup, diagnostics required", m1, OrderStatus.Diagnostics, "card");
         AddWorkToOrder(order, "Computer diagnostics", 1.5, 2500);
         SaveAll();
     }

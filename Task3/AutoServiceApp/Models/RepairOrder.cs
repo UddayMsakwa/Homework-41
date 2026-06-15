@@ -10,7 +10,7 @@ public class RepairOrder : BaseEntity
     [System.Text.Json.Serialization.JsonIgnore]
     public Car? Car { get; set; }
     public string ProblemDescription { get; set; } = "";
-    public string Status { get; set; } = "New";
+    public OrderStatus Status { get; set; } = OrderStatus.New;
     public string AssignedMechanicId { get; set; } = "";
     [System.Text.Json.Serialization.JsonIgnore]
     public Mechanic? AssignedMechanic { get; set; }
