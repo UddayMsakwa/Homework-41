@@ -6,8 +6,28 @@ public class Customer : BaseEntity, IExportable
     public string Phone { get; set; } = "";
     public string Email { get; set; } = "";
     public string Address { get; set; } = "";
+
     [System.Text.Json.Serialization.JsonIgnore]
-    public List<Car> Cars { get; set; } = new();
+    private readonly List<Car> _cars = new();
+    public IReadOnlyCollection<Car> Cars => _cars;
+
+    public void AddCar(Car car)
+    {
+        _cars.Add(car);
+    }
+
+    
+    public void RemoveCar(Car car)
+    {
+        _cars.Remove(car);
+    }
+
+    public void ClearCars()
+    {
+        _cars.Clear();
+    }
+    
+
     public string LastPaymentMethod { get; set; } = "cash";
 
     public string Export() => $"{Name};{Phone};{Email};{Address}";

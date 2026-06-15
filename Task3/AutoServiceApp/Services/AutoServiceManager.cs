@@ -55,9 +55,13 @@ public class AutoServiceManager
 
     public void RelinkEverything()
     {
-        
+       
         foreach (var c in Customers)
-            c.Cars = Cars.Where(x => x.CustomerId == c.Id).ToList();
+        {
+            c.ClearCars();
+            foreach (var car in Cars.Where(x => x.CustomerId == c.Id))
+                c.AddCar(car);
+        }
 
         foreach (var car in Cars)
             car.Owner = Customers.FirstOrDefault(x => x.Id == car.CustomerId);
@@ -111,7 +115,6 @@ public class AutoServiceManager
 
     public Car AddCar(Customer? owner, string make, string model, int year, string vin, int mileage, string licensePlate)
     {
-        
         var car = new Car
         {
             CustomerId = owner?.Id ?? "",
@@ -125,7 +128,7 @@ public class AutoServiceManager
         };
         Cars.Add(car);
         if (owner != null)
-            owner.Cars.Add(car);
+            owner.AddCar(car);   
         SaveAll();
         return car;
     }
@@ -147,16 +150,15 @@ public class AutoServiceManager
 
     public void DeleteCar(Car car)
     {
-        
         Cars.Remove(car);
         foreach (var c in Customers)
-            c.Cars.RemoveAll(x => x.Id == car.Id);
+            c.RemoveCar(car);   
         foreach (var order in Orders.Where(x => x.CarId == car.Id).ToList())
             Orders.Remove(order);
         SaveAll();
     }
 
-    
+
     public Mechanic AddMechanic(string name, string specialization, decimal hourRate)
     {
         var m = new Mechanic { Name = name, Specialization = specialization, HourRate = hourRate };
@@ -302,7 +304,7 @@ public class AutoServiceManager
         return result - _tempDiscount;
     }
 
-    
+
     public string BuildOrderDetails(RepairOrder order)
     {
         var sb = new StringBuilder();
@@ -314,8 +316,10 @@ public class AutoServiceManager
         sb.AppendLine("History:");
         foreach (var h in order.StatusHistory)
             sb.AppendLine(" - " + h);
-        if (order.Customer?.Cars.Count > 0)
-            sb.AppendLine("First car owner phone: " + order.Customer.Cars[0].Owner?.Phone);
+        
+        var firstCar = order.Customer?.Cars.FirstOrDefault();
+        if (firstCar != null)
+            sb.AppendLine("First car owner phone: " + firstCar.Owner?.Phone);
         return sb.ToString();
     }
 
