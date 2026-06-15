@@ -7,5 +7,9 @@ public class Part : BaseEntity
     public decimal Price { get; set; }
     public int Stock { get; set; }
 
+    public string DisplayName()
+    {
+        return $"{Name} ({Article})";
+    }
     public override string ToString() => $"{Name} [{Article}], {Price:C}, stock {Stock}";
 }

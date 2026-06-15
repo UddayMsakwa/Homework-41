@@ -14,10 +14,7 @@ public class AutoServiceManager
     public List<Mechanic> Mechanics { get; set; } = new();
     public List<string> Notifications { get; set; } = new();
 
-    public RepairOrder? _selectedOrder;
-    public Part? _selectedPart;
-    public decimal _tempDiscount;
-    public BaseReport? _currentReport;
+    public OrderProcessingContext Context { get; set; } = new();
 
     public JsonFileStore<Customer> CustomerStore { get; set; } = new();
     public JsonFileStore<Car> CarStore { get; set; } = new();
@@ -28,6 +25,20 @@ public class AutoServiceManager
     public EmailSender EmailSender { get; set; } = new();
     public ReportService ReportService { get; set; } = new();
     public OrderStatusHelper StatusHelper { get; set; } = new();
+    public OrderStatusService StatusService { get; set; }
+
+    
+    public CustomerService CustomerService { get; set; }
+    public InventoryService InventoryService { get; set; }
+    public OrderService OrderService { get; set; }
+
+    public AutoServiceManager()
+    {
+        StatusService = new OrderStatusService(StatusHelper);
+        CustomerService = new CustomerService(this);
+        InventoryService = new InventoryService(this);
+        OrderService = new OrderService(this, SmsNotifier, EmailSender, StatusService);
+    }
 
     public void Load()
     {
@@ -53,7 +64,11 @@ public class AutoServiceManager
     public void RelinkEverything()
     {
         foreach (var c in Customers)
-            c.Cars = Cars.Where(x => x.CustomerId == c.Id).ToList();
+        {
+            c.ClearCars();
+            foreach (var car in Cars.Where(x => x.CustomerId == c.Id))
+                c.AddCar(car);
+        }
 
         foreach (var car in Cars)
             car.Owner = Customers.FirstOrDefault(x => x.Id == car.CustomerId);
@@ -69,79 +84,37 @@ public class AutoServiceManager
             m.AssignedOrderIds = Orders.Where(x => x.AssignedMechanicId == m.Id).Select(x => x.Id).ToList();
     }
 
-    public Customer AddCustomer(string name, string phone, string email, string address)
-    {
-        var c = new Customer { Name = name, Phone = phone, Email = email, Address = address };
-        Customers.Add(c);
-        SaveAll();
-        return c;
-    }
-
+    
+    public Customer AddCustomer(CustomerInfo info) => CustomerService.AddCustomer(info);
     public void UpdateCustomer(Customer customer, string name, string phone, string email, string address)
-    {
-        customer.Name = name;
-        customer.Phone = phone;
-        customer.Email = email;
-        customer.Address = address;
-        foreach (var order in Orders.Where(x => x.CustomerId == customer.Id))
-            order.Customer = customer;
-        SaveAll();
-    }
+        => CustomerService.UpdateCustomer(customer, name, phone, email, address);
+    public void DeleteCustomer(Customer customer) => CustomerService.DeleteCustomer(customer);
 
-    public void DeleteCustomer(Customer customer)
-    {
-        Customers.Remove(customer);
-        foreach (var car in Cars.Where(x => x.CustomerId == customer.Id).ToList())
-            Cars.Remove(car);
-        foreach (var order in Orders.Where(x => x.CustomerId == customer.Id).ToList())
-            Orders.Remove(order);
-        SaveAll();
-    }
+    public Part AddPart(string name, string article, decimal price, int stock)
+        => InventoryService.AddPart(name, article, price, stock);
+    public void UpdatePart(Part part, string name, string article, decimal price, int stock)
+        => InventoryService.UpdatePart(part, name, article, price, stock);
+    public void DeletePart(Part p) => InventoryService.DeletePart(p);
 
-    public Car AddCar(Customer? owner, string make, string model, int year, string vin, int mileage, string licensePlate)
-    {
-        var car = new Car
-        {
-            CustomerId = owner?.Id ?? "",
-            Owner = owner,
-            Make = make,
-            Model = model,
-            Year = year,
-            Vin = vin,
-            Mileage = mileage,
-            LicensePlate = licensePlate
-        };
-        Cars.Add(car);
-        if (owner != null)
-            owner.Cars.Add(car);
-        SaveAll();
-        return car;
-    }
+    public RepairOrder CreateOrder(Customer? customer, Car? car, string description, Mechanic? mechanic, OrderStatus status, string paymentMethod)
+        => OrderService.CreateOrder(customer, car, description, mechanic, status, paymentMethod);
+    public void UpdateOrder(RepairOrder order, Customer? customer, Car? car, string description, Mechanic? mechanic, OrderStatus status, decimal cost, string paymentMethod)
+        => OrderService.UpdateOrder(order, customer, car, description, mechanic, status, cost, paymentMethod);
+    public void ChangeOrderStatus(RepairOrder order, OrderStatus newStatus, string notificationType)
+        => OrderService.ChangeOrderStatus(order, newStatus, notificationType);
+    public void AddWorkToOrder(RepairOrder order, string name, double hours, decimal cost)
+        => OrderService.AddWorkToOrder(order, name, hours, cost);
+    public bool UsePartForOrder(RepairOrder order, Part part, int qty)
+        => OrderService.UsePartForOrder(order, part, qty);
+    public decimal CalculateOrderCost(RepairOrder order, bool final, string paymentMethod)
+        => OrderService.CalculateOrderCost(order, final, paymentMethod);
+    public string BuildOrderDetails(RepairOrder order) => OrderService.BuildOrderDetails(order);
+    public List<RepairOrder> GetOrdersForMechanic(Mechanic m) => OrderService.GetOrdersForMechanic(m);
 
-    public void UpdateCar(Car car, Customer? owner, string make, string model, int year, string vin, int mileage, string licensePlate)
-    {
-        car.CustomerId = owner?.Id ?? "";
-        car.Owner = owner;
-        car.Make = make;
-        car.Model = model;
-        car.Year = year;
-        car.Vin = vin;
-        car.Mileage = mileage;
-        car.LicensePlate = licensePlate;
-        RelinkEverything();
-        SaveAll();
-    }
+    
+    public void NotifyAboutStatus(RepairOrder order, string type) { }
 
-    public void DeleteCar(Car car)
-    {
-        Cars.Remove(car);
-        foreach (var c in Customers)
-            c.Cars.RemoveAll(x => x.Id == car.Id);
-        foreach (var order in Orders.Where(x => x.CarId == car.Id).ToList())
-            Orders.Remove(order);
-        SaveAll();
-    }
-
+    
     public Mechanic AddMechanic(string name, string specialization, decimal hourRate)
     {
         var m = new Mechanic { Name = name, Specialization = specialization, HourRate = hourRate };
@@ -169,188 +142,71 @@ public class AutoServiceManager
         SaveAll();
     }
 
-    public Part AddPart(string name, string article, decimal price, int stock)
+    
+    public Car AddCar(Customer? owner, string make, string model, int year, string vin, int mileage, string licensePlate)
     {
-        var p = new Part { Name = name, Article = article, Price = price, Stock = stock };
-        Parts.Add(p);
-        SaveAll();
-        return p;
-    }
-
-    public void UpdatePart(Part part, string name, string article, decimal price, int stock)
-    {
-        part.Name = name;
-        part.Article = article;
-        part.Price = price;
-        part.Stock = stock;
-        SaveAll();
-    }
-
-    public void DeletePart(Part p)
-    {
-        Parts.Remove(p);
-        SaveAll();
-    }
-
-    public RepairOrder CreateOrder(Customer? customer, Car? car, string description, Mechanic? mechanic, string status, string paymentMethod)
-    {
-        var order = new RepairOrder
+        var car = new Car
         {
-            OrderNumber = "RO-" + DateTime.Now.ToString("yyyyMMdd-HHmmss"),
-            CustomerId = customer?.Id ?? "",
-            CarId = car?.Id ?? "",
-            Customer = customer,
-            Car = car,
-            ProblemDescription = description,
-            AssignedMechanicId = mechanic?.Id ?? "",
-            AssignedMechanic = mechanic,
-            Status = status,
-            PaymentMethod = paymentMethod,
-            Cost = 0
+            CustomerId = owner?.Id ?? "",
+            Owner = owner,
+            Make = make,
+            Model = model,
+            Year = year,
+            Vin = vin,
+            Mileage = mileage,
+            LicensePlate = licensePlate
         };
-        order.StatusHistory.Add($"{DateTime.Now:g}: order created with status {status}");
-        Orders.Add(order);
-        if (mechanic != null)
-            mechanic.AssignedOrderIds.Add(order.Id);
+        Cars.Add(car);
+        if (owner != null)
+            owner.AddCar(car);
         SaveAll();
-        return order;
+        return car;
     }
 
-    public void UpdateOrder(RepairOrder order, Customer? customer, Car? car, string description, Mechanic? mechanic, string status, decimal cost, string paymentMethod)
+    public void UpdateCar(Car car, Customer? owner, string make, string model, int year, string vin, int mileage, string licensePlate)
     {
-        order.CustomerId = customer?.Id ?? "";
-        order.CarId = car?.Id ?? "";
-        order.Customer = customer;
-        order.Car = car;
-        order.ProblemDescription = description;
-        order.AssignedMechanicId = mechanic?.Id ?? "";
-        order.AssignedMechanic = mechanic;
-        order.PaymentMethod = paymentMethod;
-        order.Cost = cost;
-        if (order.Status != status)
-            ChangeOrderStatus(order, status, "both");
+        car.CustomerId = owner?.Id ?? "";
+        car.Owner = owner;
+        car.Make = make;
+        car.Model = model;
+        car.Year = year;
+        car.Vin = vin;
+        car.Mileage = mileage;
+        car.LicensePlate = licensePlate;
         RelinkEverything();
         SaveAll();
     }
 
-    public void ChangeOrderStatus(RepairOrder order, string newStatus, string notificationType)
+    public void DeleteCar(Car car)
     {
-        _selectedOrder = order;
-        StatusHelper.MarkStatus(order, newStatus);
-        if (newStatus == "Ready")
-            order.Cost = CalculateOrderCost(order, true, order.PaymentMethod);
-        if (order.AssignedMechanic != null && !order.AssignedMechanic.AssignedOrderIds.Contains(order.Id))
-            order.AssignedMechanic.AssignedOrderIds.Add(order.Id);
-        NotifyAboutStatus(order, notificationType);
+        Cars.Remove(car);
+        foreach (var c in Customers)
+            c.RemoveCar(car);
+        foreach (var order in Orders.Where(x => x.CarId == car.Id).ToList())
+            Orders.Remove(order);
         SaveAll();
-    }
-
-    public void AddWorkToOrder(RepairOrder order, string name, double hours, decimal cost)
-    {
-        var work = new RepairWork { Name = name, Hours = hours, Cost = cost };
-        order.Works.Add(work);
-        order.Cost = CalculateOrderCost(order, false, order.PaymentMethod);
-        SaveAll();
-    }
-
-    public bool UsePartForOrder(RepairOrder order, Part part, int qty)
-    {
-        _selectedPart = part;
-        if (part.Stock < qty)
-            return false;
-
-        part.Stock -= qty;
-        for (var i = 0; i < qty; i++)
-            order.UsedPartIds.Add(part.Id);
-        order.Cost += part.Price * qty * 1.50m;
-        order.StatusHistory.Add($"{DateTime.Now:g}: part used {part.Name} x{qty}");
-        SaveAll();
-        return true;
-    }
-
-    public decimal CalculateOrderCost(RepairOrder order, bool final, string paymentMethod)
-    {
-        var works = order.Works.Sum(x => x.Cost + (decimal)x.Hours * (order.AssignedMechanic?.HourRate ?? 0));
-        var parts = order.UsedPartIds.Select(id => Parts.FirstOrDefault(p => p.Id == id)).Where(p => p != null).Sum(p => p!.Price * 1.20m);
-        var result = works + parts;
-        if (paymentMethod == "card")
-            result += result * 0.05m;
-        if (order.Customer != null && order.Customer.Cars.Count > 2)
-            result -= result * 0.10m;
-        if (final && order.Status == "Ready")
-            result += 500;
-        if (result > 10000)
-            _tempDiscount = result * 0.15m;
-        else
-            _tempDiscount = 0;
-        return result - _tempDiscount;
-    }
-
-    public string BuildOrderDetails(RepairOrder order)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine(order.ToString());
-        sb.AppendLine(order.ProblemDescription);
-        sb.AppendLine("Works:");
-        foreach (var work in order.Works)
-            sb.AppendLine(" - " + work);
-        sb.AppendLine("History:");
-        foreach (var h in order.StatusHistory)
-            sb.AppendLine(" - " + h);
-        if (order.Customer?.Cars.Count > 0)
-            sb.AppendLine("First car owner phone: " + order.Customer.Cars[0].Owner?.Phone);
-        return sb.ToString();
     }
 
     public string BuildReports(DateTime from, DateTime to)
     {
-        _currentReport = new RepairReport { Title = "General report", From = from, To = to, Orders = Orders };
+        Context.CurrentReport = new RepairReport { Title = "General report", From = from, To = to, Orders = Orders };
         return ReportService.BuildRevenueReport(Orders, from, to) + "\n"
             + ReportService.BuildPopularWorks(Orders) + "\n\n"
             + ReportService.BuildMechanicsLoad(Mechanics, Orders) + "\n"
             + ReportService.BuildPartsStock(Parts);
     }
 
-    public List<RepairOrder> GetOrdersForMechanic(Mechanic m)
-    {
-        var result = new List<RepairOrder>();
-        foreach (var id in m.AssignedOrderIds)
-        {
-            var o = Orders.FirstOrDefault(x => x.Id == id);
-            if (o != null)
-                result.Add(o);
-        }
-        return result;
-    }
-
-    public void NotifyAboutStatus(RepairOrder order, string type)
-    {
-        var phone = order.Customer?.Phone ?? "";
-        var email = order.Customer?.Email ?? "";
-        var text = $"Order {order.OrderNumber}: new status {order.Status}";
-        if (type == "sms")
-            SmsNotifier.SendSms(phone, text);
-        else if (type == "email")
-            EmailSender.Send(email, "Order status", text);
-        else
-        {
-            SmsNotifier.SendSms(phone, text);
-            EmailSender.Send(email, "Order status", text);
-        }
-        Notifications.Add($"{DateTime.Now:g}: {type} {text}");
-    }
-
     private void Seed()
     {
-        var c1 = AddCustomer("John Parker", "+1 555 100-20-30", "john@example.com", "12 Market Street");
-        var c2 = AddCustomer("Anna Stone", "+1 555 555-44-33", "anna@example.com", "45 Lake Avenue");
+        var c1 = AddCustomer(new CustomerInfo { Name = "John Parker", Phone = "+1 555 100-20-30", Email = "john@example.com", Address = "12 Market Street" });
+        var c2 = AddCustomer(new CustomerInfo { Name = "Anna Stone", Phone = "+1 555 555-44-33", Email = "anna@example.com", Address = "45 Lake Avenue" });
         var car1 = AddCar(c1, "Toyota", "Camry", 2018, "JTNB11HK303000001", 87000, "ABC123");
         AddCar(c2, "Kia", "Rio", 2021, "Z94CB41ABMR000002", 43000, "MOR777");
         var m1 = AddMechanic("Sam Miller", "engine", 1200);
         AddMechanic("Owen Lane", "electrical", 1500);
         AddPart("Oil filter", "OF-100", 650, 12);
         AddPart("Brake pads", "BR-500", 3200, 5);
-        var order = CreateOrder(c1, car1, "Knock on startup, diagnostics required", m1, "Diagnostics", "card");
+        var order = CreateOrder(c1, car1, "Knock on startup, diagnostics required", m1, OrderStatus.Diagnostics, "card");
         AddWorkToOrder(order, "Computer diagnostics", 1.5, 2500);
         SaveAll();
     }
